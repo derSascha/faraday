@@ -8,10 +8,20 @@ module Faraday
 
       def call(env)
         super
+
+        if @connection_options[:session_pool]
+          @connection_options[:session_pool].with do |session|
+            perform_request(session, env)
+          end
+        else
+          perform_request(::Patron::Session.new, env)
+        end
+      end
+
+      def perform_request(session, env)
         # TODO: support streaming requests
         env[:body] = env[:body].read if env[:body].respond_to? :read
 
-        session = ::Patron::Session.new
         @config_block&.call(session)
         if (env[:url].scheme == 'https') && env[:ssl]
           configure_ssl(session, env[:ssl])
